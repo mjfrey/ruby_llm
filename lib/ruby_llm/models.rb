@@ -9,7 +9,7 @@ module RubyLLM
   #   RubyLLM.models.chat_models                          # Models that support chat
   #   RubyLLM.models.by_provider('openai').chat_models    # OpenAI chat models
   #   RubyLLM.models.find('claude-3')                     # Get info about a specific model
-  class Models
+  class Models # rubocop:disable Metrics/ClassLength
     include Enumerable
 
     # Delegate class methods to the singleton instance
@@ -26,36 +26,53 @@ module RubyLLM
         File.expand_path('models.json', __dir__)
       end
 
-      def refresh! # rubocop:disable Metrics/AbcSize,Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity,Metrics/MethodLength
-        global_config = RubyLLM.config
-        configured = Provider.configured_providers global_config
-
-        # Log provider status
-        skipped = Provider.providers.values - configured
-        RubyLLM.logger.info "Refreshing models from #{configured.map(&:slug).join(', ')}" if configured.any?
-        RubyLLM.logger.info "Skipping #{skipped.map(&:slug).join(', ')} - providers not configured" if skipped.any?
-
-        # Store current models except from configured providers
-        current = instance.load_models
-        preserved = current.reject { |m| configured.map(&:slug).include?(m.provider) }
-
-        all = (preserved + configured.flat_map do |p|
-          p.list_models(connection: p.connection(global_config))
-        end).sort_by { |m| [m.provider, m.id] }
-        @instance = new(all)
+      def refresh!
+        @instance = new(fetch_models)
+        RubyLLM.logger.info "Model registry refreshed with #{@instance.count} models."
         @instance
       end
 
       def method_missing(method, ...)
-        if instance.respond_to?(method)
-          instance.send(method, ...)
-        else
-          super
-        end
+        instance.respond_to?(method) ? instance.send(method, ...) : super
       end
 
       def respond_to_missing?(method, include_private = false)
         instance.respond_to?(method, include_private) || super
+      end
+
+      private
+
+      def fetch_models
+        models = fetch_provider_models + fetch_parsera_models
+        models.uniq { |m| [m.provider, m.id] }.sort_by { |m| [m.provider, m.id] }
+      end
+
+      def fetch_provider_models
+        Provider.configured_providers(RubyLLM.config).flat_map do |provider|
+          provider.list_models(connection: provider.connection(RubyLLM.config))
+                  .map { |data| ModelInfo.new(data.merge(default_model_attributes)) }
+        end
+      end
+
+      def fetch_parsera_models
+        response = Faraday.new('https://api.parsera.org/v1/llm-specs', request: { timeout: 60 })
+                          .get
+                          .body
+                          .then { |body| JSON.parse(body) }
+
+        response.map { |data| ModelInfo.new(RubyLLM::Utils.symbolize_keys_deep(data)) }
+      rescue Faraday::Error => e
+        RubyLLM.logger.error "Failed to fetch Parsera models: #{e.message}"
+        []
+      end
+
+      def default_model_attributes
+        {
+          modalities: { text: {}, image: {}, audio: {} },
+          capabilities: {},
+          pricing: { text_tokens: { standard: {}, batch: {} }, embeddings: { standard: {}, batch: {} } },
+          embeddings_output: nil
+        }
       end
     end
 

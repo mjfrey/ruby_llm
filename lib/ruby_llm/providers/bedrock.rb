@@ -83,10 +83,6 @@ module RubyLLM
         )
       end
 
-      def capabilities
-        Bedrock::Capabilities
-      end
-
       def slug
         'bedrock'
       end

@@ -2,7 +2,7 @@
 
 require 'spec_helper'
 
-RSpec.describe RubyLLM::Providers::OpenAI::Capabilities do # rubocop:disable RSpec/SpecFilePathFormat
+RSpec.describe RubyLLM::Providers::OpenAI do # rubocop:disable RSpec/SpecFilePathFormat
   describe '.normalize_temperature' do
     it 'forces temperature to 1.0 for O1 models' do
       o1_models = %w[o1 o1-mini o1-preview o3-mini]

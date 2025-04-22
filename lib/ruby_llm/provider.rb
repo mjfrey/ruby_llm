@@ -28,7 +28,7 @@ module RubyLLM
 
       def list_models(connection:)
         response = connection.get models_url
-        parse_list_models_response response, slug, capabilities
+        parse_list_models_response response, slug
       end
 
       def embed(text, model:, connection:)
@@ -58,8 +58,8 @@ module RubyLLM
       private
 
       def maybe_normalize_temperature(temperature, model)
-        if capabilities.respond_to?(:normalize_temperature)
-          capabilities.normalize_temperature(temperature, model)
+        if respond_to?(:normalize_temperature)
+          normalize_temperature(temperature, model)
         else
           temperature
         end

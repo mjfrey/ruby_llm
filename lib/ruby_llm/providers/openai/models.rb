@@ -11,27 +11,23 @@ module RubyLLM
           'models'
         end
 
-        def parse_list_models_response(response, slug, capabilities) # rubocop:disable Metrics/AbcSize,Metrics/MethodLength
-          (response.body['data'] || []).map do |model|
-            ModelInfo.new(
-              id: model['id'],
-              created_at: model['created'] ? Time.at(model['created']) : nil,
-              display_name: capabilities.format_display_name(model['id']),
+        def parse_list_models_response(response, slug)
+          (response.body['data'] || []).map do |model_data|
+            {
+              id: model_data['id'],
               provider: slug,
-              type: capabilities.model_type(model['id']),
-              family: capabilities.model_family(model['id']),
-              metadata: {
-                object: model['object'],
-                owned_by: model['owned_by']
-              },
-              context_window: capabilities.context_window_for(model['id']),
-              max_tokens: capabilities.max_tokens_for(model['id']),
-              supports_vision: capabilities.supports_vision?(model['id']),
-              supports_functions: capabilities.supports_functions?(model['id']),
-              supports_json_mode: capabilities.supports_json_mode?(model['id']),
-              input_price_per_million: capabilities.input_price_for(model['id']),
-              output_price_per_million: capabilities.output_price_for(model['id'])
-            )
+              created_at: model_data['created'] ? Time.at(model_data['created']) : nil,
+              initial_metadata: { owned_by: model_data['owned_by'] }
+            }
+          end
+        end
+
+        def normalize_temperature(temperature, model_id)
+          if model_id.match?(/^o\d/)
+            RubyLLM.logger.debug "Model #{model_id} requires temperature=1.0, ignoring provided value"
+            1.0
+          else
+            temperature
           end
         end
       end

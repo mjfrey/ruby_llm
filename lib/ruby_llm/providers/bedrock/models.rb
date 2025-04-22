@@ -5,6 +5,10 @@ module RubyLLM
     module Bedrock
       # Models methods for the AWS Bedrock API implementation
       module Models
+        def models_url
+          'foundation-models'
+        end
+
         def list_models(connection:)
           config = connection.config
           mgmt_api_base = "https://bedrock.#{config.bedrock_region}.amazonaws.com"
@@ -14,75 +18,28 @@ module RubyLLM
             req.headers.merge! signature.headers
           end
 
-          parse_list_models_response(response, slug, capabilities)
+          parse_list_models_response(response, slug)
         end
 
         module_function
 
-        def models_url
-          'foundation-models'
-        end
-
-        def parse_list_models_response(response, slug, capabilities)
-          data = response.body['modelSummaries'] || []
-          data.filter { |model| model['modelId'].include?('claude') }
-              .map { |model| create_model_info(model, slug, capabilities) }
-        end
-
-        def create_model_info(model, slug, capabilities)
-          model_id = model['modelId']
-          ModelInfo.new(
-            **base_model_attributes(model_id, model, slug),
-            **capability_attributes(model_id, capabilities),
-            **pricing_attributes(model_id, capabilities),
-            metadata: build_metadata(model)
-          )
-        end
-
-        def base_model_attributes(model_id, model, slug)
-          {
-            id: model_id_with_prefix(model_id, model),
-            created_at: nil,
-            display_name: model['modelName'] || capabilities.format_display_name(model_id),
-            provider: slug
-          }
-        end
-
-        def model_id_with_prefix(model_id, model)
-          return model_id unless model['inferenceTypesSupported']&.include?('INFERENCE_PROFILE')
-          return model_id if model['inferenceTypesSupported']&.include?('ON_DEMAND')
-
-          "us.#{model_id}"
-        end
-
-        def capability_attributes(model_id, capabilities)
-          {
-            context_window: capabilities.context_window_for(model_id),
-            max_tokens: capabilities.max_tokens_for(model_id),
-            type: capabilities.model_type(model_id),
-            family: capabilities.model_family(model_id).to_s,
-            supports_vision: capabilities.supports_vision?(model_id),
-            supports_functions: capabilities.supports_functions?(model_id),
-            supports_json_mode: capabilities.supports_json_mode?(model_id)
-          }
-        end
-
-        def pricing_attributes(model_id, capabilities)
-          {
-            input_price_per_million: capabilities.input_price_for(model_id),
-            output_price_per_million: capabilities.output_price_for(model_id)
-          }
-        end
-
-        def build_metadata(model)
-          {
-            provider_name: model['providerName'],
-            customizations_supported: model['customizationsSupported'] || [],
-            inference_configurations: model['inferenceTypesSupported'] || [],
-            response_streaming_supported: model['responseStreamingSupported'] || false,
-            input_modalities: model['inputModalities'] || [],
-            output_modalities: model['outputModalities'] || []
-          }
+        def parse_list_models_response(response, slug) # rubocop:disable Metrics/MethodLength
+          model_list = response.body['modelSummaries'] || []
+          RubyLLM.logger.debug "Bedrock raw models list count: #{model_list.count}"
+          model_list.filter { |model| model['modelId'].include?('claude') }
+                    .map do |model_data|
+            {
+              id: model_data['modelId'],
+              provider: slug,
+              display_name: model_data['modelName'],
+              initial_metadata: {
+                provider_name: model_data['providerName'],
+                inference_types_supported: model_data['inferenceTypesSupported'] || [],
+                input_modalities: model_data['inputModalities'] || [],
+                output_modalities: model_data['outputModalities'] || []
+              }
+            }
+          end
         end
       end
     end

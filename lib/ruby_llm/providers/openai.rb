@@ -38,10 +38,6 @@ module RubyLLM
         }
       end
 
-      def capabilities
-        OpenAI::Capabilities
-      end
-
       def slug
         'openai'
       end

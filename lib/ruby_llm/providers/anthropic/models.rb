@@ -11,23 +11,16 @@ module RubyLLM
           '/v1/models'
         end
 
-        def parse_list_models_response(response, slug, capabilities) # rubocop:disable Metrics/AbcSize,Metrics/MethodLength
-          (response.body['data'] || []).map do |model|
-            ModelInfo.new(
-              id: model['id'],
-              created_at: Time.parse(model['created_at']),
-              display_name: model['display_name'],
+        def parse_list_models_response(response, slug)
+          model_list = response.body['data'] || []
+          model_list.map do |model_data|
+            created_time = model_data['created_at'] ? Time.parse(model_data['created_at']) : nil
+            {
+              id: model_data['id'],
               provider: slug,
-              type: capabilities.model_type(model['id']),
-              family: capabilities.model_family(model['id']),
-              context_window: capabilities.determine_context_window(model['id']),
-              max_tokens: capabilities.determine_max_tokens(model['id']),
-              supports_vision: capabilities.supports_vision?(model['id']),
-              supports_functions: capabilities.supports_functions?(model['id']),
-              supports_json_mode: capabilities.supports_json_mode?(model['id']),
-              input_price_per_million: capabilities.get_input_price(model['id']),
-              output_price_per_million: capabilities.get_output_price(model['id'])
-            )
+              display_name: model_data['display_name'],
+              created_at: created_time
+            }
           end
         end
 

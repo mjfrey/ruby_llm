@@ -12,33 +12,15 @@ module RubyLLM
 
         private
 
-        def parse_list_models_response(response, slug, capabilities) # rubocop:disable Metrics/AbcSize,Metrics/MethodLength
-          (response.body['models'] || []).map do |model|
-            # Extract model ID without "models/" prefix
-            model_id = model['name'].gsub('models/', '')
-
-            ModelInfo.new(
+        def parse_list_models_response(response, slug)
+          (response.body['models'] || []).map do |model_data|
+            model_id = model_data['name'].gsub('models/', '')
+            {
               id: model_id,
-              created_at: nil,
-              display_name: model['displayName'],
               provider: slug,
-              type: capabilities.model_type(model_id),
-              family: capabilities.model_family(model_id),
-              metadata: {
-                version: model['version'],
-                description: model['description'],
-                input_token_limit: model['inputTokenLimit'],
-                output_token_limit: model['outputTokenLimit'],
-                supported_generation_methods: model['supportedGenerationMethods']
-              },
-              context_window: model['inputTokenLimit'] || capabilities.context_window_for(model_id),
-              max_tokens: model['outputTokenLimit'] || capabilities.max_tokens_for(model_id),
-              supports_vision: capabilities.supports_vision?(model_id),
-              supports_functions: capabilities.supports_functions?(model_id),
-              supports_json_mode: capabilities.supports_json_mode?(model_id),
-              input_price_per_million: capabilities.input_price_for(model_id),
-              output_price_per_million: capabilities.output_price_for(model_id)
-            )
+              display_name: model_data['displayName'], # Gemini provides this
+              initial_metadata: { version: model_data['version'] }
+            }
           end
         end
       end
