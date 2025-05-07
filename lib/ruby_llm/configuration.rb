@@ -38,6 +38,7 @@ module RubyLLM
                   # Logging configuration
                   :log_file,
                   :log_level,
+                  :completion_url,
                   :log_assume_model_exists
 
     def initialize
