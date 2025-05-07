@@ -6,7 +6,7 @@ module RubyLLM
       # Chat methods of the OpenAI API integration
       module Chat
         def completion_url
-          'chat/completions'
+          RubyLLM.config.completion_url || 'chat/completions'
         end
 
         module_function

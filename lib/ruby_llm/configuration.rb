@@ -34,7 +34,8 @@ module RubyLLM
                   :retry_interval_randomness,
                   # Logging configuration
                   :log_file,
-                  :log_level
+                  :log_level,
+                  :completion_url
 
     def initialize
       # Connection configuration
