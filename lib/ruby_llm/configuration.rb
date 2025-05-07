@@ -39,6 +39,7 @@ module RubyLLM
                   :log_file,
                   :log_level,
                   :completion_url,
+                  :completion_url,
                   :log_assume_model_exists
 
     def initialize
